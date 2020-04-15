@@ -34,7 +34,7 @@ jobs:
           branch_or_tag_name=${GITHUB_REF#refs/*/}
           make deps test-deps base_rmq_ref=master current_rmq_ref=$branch_or_tag_name
           echo "Capture tested deps versions..."
-          make rabbitmq-server-tested-deps.mk
+          make deps/rabbitmq-server-tested-deps.mk
           echo "Remove directories not used in the subsequent jobs..."
           rm -fr deps/*/{.git,test}
           echo "Symlink rabbit dep to rabbitmq-server to address the hard-coding in install-cli-scripts make target..."
@@ -42,7 +42,7 @@ jobs:
         uses: actions/upload-artifact@v2-preview
         with:
           name: rabbitmq-server-tested-deps.mk
-          path: rabbitmq-server-tested-deps.mk
+          path: deps/rabbitmq-server-tested-deps.mk
       - name: CACHE APP MODULES
         uses: actions/cache@v1
         with:
@@ -938,9 +938,6 @@ jobs:
           branch_or_tag_name=${GITHUB_REF#refs/*/}
           touch ebin/*
           make ct-feature_flags base_rmq_ref=master current_rmq_ref=$branch_or_tag_named FULL=
-      - name: ON FAILURE ARCHIVE TESTS LOGS
-        if: failure()
-        run: |
       - name: ON FAILURE ARCHIVE TESTS LOGS
         if: failure()
         run: |
@@ -3740,3 +3737,114 @@ jobs:
         with:
           name: ct-vhost-logs
           path: "*-ct-logs-*.tar.xz"
+  passed-with-deps:
+    needs:
+      - eunit
+      - ct-amqqueue_backward_compatibility
+      - ct-backing_queue
+      - ct-channel_interceptor
+      - ct-channel_operation_timeout
+      - ct-cluster
+      - ct-cluster_rename
+      - ct-clustering_management_clustered_2_nodes
+      - ct-clustering_management_clustered_4_nodes
+      - ct-clustering_management_unclustered_2_nodes
+      - ct-clustering_management_unclustered_3_nodes
+      - ct-config_schema
+      - ct-confirms_rejects
+      - ct-consumer_timeout
+      - ct-crashing_queues
+      - ct-dead_lettering
+      - ct-definition_import
+      - ct-disconnect_detected_during_alarm
+      - ct-dynamic_ha
+      - ct-dynamic_qq
+      - ct-eager_sync
+      - ct-feature_flags
+      - ct-health_check
+      - ct-lazy_queue
+      - ct-list_consumers_sanity_check
+      - ct-list_queues_online_and_offline
+      - ct-many_node_ha
+      - ct-message_size_limit
+      - ct-metrics
+      - ct-mirrored_supervisor
+      - ct-msg_store
+      - ct-peer_discovery_classic_config
+      - ct-peer_discovery_dns
+      - ct-per_user_connection_tracking
+      - ct-per_vhost_connection_limit
+      - ct-per_vhost_connection_limit_partitions
+      - ct-per_vhost_msg_store
+      - ct-per_vhost_queue_limit
+      - ct-policy
+      - ct-priority_queue
+      - ct-priority_queue_recovery
+      - ct-product_info
+      - ct-proxy_protocol
+      - ct-publisher_confirms_parallel
+      - ct-queue_length_limits
+      - ct-queue_master_location
+      - ct-queue_parallel
+      - ct-quorum_queue
+      - ct-rabbit_core_metrics_gc
+      - ct-rabbit_fifo
+      - ct-rabbit_fifo_int
+      - ct-rabbit_fifo_prop
+      - ct-rabbitmq_queues_cli_integration
+      - ct-rabbitmqctl_integration
+      - ct-rabbitmqctl_shutdown
+      - ct-signal_handling
+      - ct-simple_ha
+      - ct-single_active_consumer
+      - ct-sup_delayed_restart
+      - ct-sync_detection
+      - ct-term_to_binary_compat_prop
+      - ct-topic_permission
+      - ct-unit_access_control
+      - ct-unit_access_control_authn_authz_context_propagation
+      - ct-unit_access_control_credential_validation
+      - ct-unit_amqp091_content_framing
+      - ct-unit_amqp091_server_properties
+      - ct-unit_app_management
+      - ct-unit_cluster_formation_locking_mocks
+      - ct-unit_collections
+      - ct-unit_config_value_encryption
+      - ct-unit_connection_tracking
+      - ct-unit_credit_flow
+      - ct-unit_disk_monitor
+      - ct-unit_disk_monitor_mocks
+      - ct-unit_file_handle_cache
+      - ct-unit_gen_server2
+      - ct-unit_gm
+      - ct-unit_log_config
+      - ct-unit_log_management
+      - ct-unit_operator_policy
+      - ct-unit_pg_local
+      - ct-unit_plugin_directories
+      - ct-unit_plugin_versioning
+      - ct-unit_priority_queue
+      - ct-unit_queue_consumers
+      - ct-unit_stats_and_metrics
+      - ct-unit_supervisor2
+      - ct-unit_vm_memory_monitor
+      - ct-vhost
+    runs-on: ubuntu-18.04
+    steps:
+      - name: CHECKOUT REPOSITORY
+        uses: actions/checkout@v2
+      - name: CACHE DEPS
+        uses: actions/cache@v1
+        with:
+          path: deps
+          key: otp-22.3_git-${{ github.sha }}_deps
+      - name: UPLOAD TESTED DEPS VERSIONS TO S3
+        # https://github.com/marketplace/actions/s3-file-upload
+        uses: zdurham/s3-upload-github-action@v1
+        env:
+         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+         AWS_REGION: ${{ secrets.AWS_REGION }}
+         FILE: deps/rabbitmq-server-tested-deps.mk
+         S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
+         S3_KEY: rabbitmq-server/${{ github.ref }}/${{ github.sha }}/otp-22.3/rabbitmq-server-tested-deps.mk
