@@ -3840,7 +3840,7 @@ jobs:
           key: otp-22.3_git-${{ github.sha }}_deps
       - name: UPLOAD TESTED DEPS VERSIONS TO S3
         # https://github.com/marketplace/actions/s3-file-upload
-        uses: zdurham/s3-upload-github-action@v1
+        uses: zdurham/s3-upload-github-action@master
         env:
          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
