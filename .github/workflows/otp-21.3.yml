@@ -16,13 +16,15 @@ jobs:
           # https://github.com/elixir-lang/elixir/releases
           elixir-version: 1.10.2
       - name: CHECK RABBITMQ COMPONENTS
+        # https://github.community/t5/GitHub-Actions/How-can-I-set-an-expression-as-an-environment-variable-at/m-p/41804/highlight/true#M4751
+        id: ref
         run: |
           branch_or_tag_name=${GITHUB_REF#refs/*/}
+          echo "::set-output name=branch_or_tag_name::$branch_or_tag_name"
           make check-rabbitmq-components.mk base_rmq_ref=master current_rmq_ref=$branch_or_tag_name
       - name: CHECK SCRIPTS
         run: |
-          branch_or_tag_name=${GITHUB_REF#refs/*/}
-          make bats base_rmq_ref=master current_rmq_ref=$branch_or_tag_name
+          make bats base_rmq_ref=master current_rmq_ref=${{ steps.ref.outputs.branch_or_tag_name }}
       # https://help.github.com/en/actions/configuring-and-managing-workflows/caching-dependencies-to-speed-up-workflows
       - name: CACHE DEPS
         uses: actions/cache@v1
@@ -31,8 +33,7 @@ jobs:
           key: otp-21.3_git-${{ github.sha }}_deps
       - name: RESOLVE & COMPILE DEPS
         run: |
-          branch_or_tag_name=${GITHUB_REF#refs/*/}
-          make deps test-deps base_rmq_ref=master current_rmq_ref=$branch_or_tag_name
+          make deps test-deps base_rmq_ref=master current_rmq_ref=${{ steps.ref.outputs.branch_or_tag_name }}
           echo "Capture tested deps versions..."
           make deps/rabbitmq-server-tested-deps.mk
           echo "Remove directories not used in the subsequent jobs..."
@@ -50,12 +51,10 @@ jobs:
           key: otp-21.3_git-${{ github.sha }}_ebin
       - name: CHECK CROSS REFERENCES
         run: |
-          branch_or_tag_name=${GITHUB_REF#refs/*/}
-          make xref base_rmq_ref=master current_rmq_ref=$branch_or_tag_named
+          make xref base_rmq_ref=master current_rmq_ref=${{ steps.ref.outputs.branch_or_tag_name }}
       - name: COMPILE FOR TEST
         run: |
-          branch_or_tag_name=${GITHUB_REF#refs/*/}
-          make test-build base_rmq_ref=master current_rmq_ref=$branch_or_tag_named
+          make test-build base_rmq_ref=master current_rmq_ref=${{ steps.ref.outputs.branch_or_tag_name }}
   eunit:
     needs: [checks]
     # https://help.github.com/en/actions/reference/context-and-expression-syntax-for-github-actions#contexts
@@ -83,9 +82,9 @@ jobs:
           key: otp-21.3_git-${{ github.sha }}_ebin
       - name: RUN TESTS
         run: |
-          branch_or_tag_name=${GITHUB_REF#refs/*/}
           touch ebin/*
-          make eunit base_rmq_ref=master current_rmq_ref=$branch_or_tag_named FULL=
+          branch_or_tag_name=${GITHUB_REF#refs/*/}
+          make eunit base_rmq_ref=master current_rmq_ref=$branch_or_tag_name FULL=
 # To find what ct suites we need to add & in which order:
 # ls test/*SUITE.erl | sort
   ct-amqqueue_backward_compatibility:
@@ -3737,7 +3736,7 @@ jobs:
         with:
           name: ct-vhost-logs
           path: "*-ct-logs-*.tar.xz"
-  passed-with-deps:
+  capture-tested-deps-versions:
     needs:
       - eunit
       - ct-amqqueue_backward_compatibility
@@ -3838,7 +3837,13 @@ jobs:
         with:
           path: deps
           key: otp-21.3_git-${{ github.sha }}_deps
-      - name: UPLOAD TESTED DEPS VERSIONS TO S3
+      - name: FORMAT GIT REF
+        # https://github.community/t5/GitHub-Actions/How-can-I-set-an-expression-as-an-environment-variable-at/m-p/41804/highlight/true#M4751
+        id: ref
+        run: |
+          branch_or_tag_name=${GITHUB_REF#refs/*/}
+          echo "::set-output name=branch_or_tag_name::$branch_or_tag_name"
+      - name: UPLOAD TO S3
         # https://github.com/marketplace/actions/s3-file-upload
         uses: zdurham/s3-upload-github-action@master
         env:
@@ -3847,4 +3852,4 @@ jobs:
          AWS_REGION: ${{ secrets.AWS_REGION }}
          FILE: deps/rabbitmq-server-tested-deps.mk
          S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
-         S3_KEY: rabbitmq-server/${{ github.ref }}/${{ github.sha }}/otp-21.3/rabbitmq-server-tested-deps.mk
+         S3_KEY: rabbitmq-server/${{ steps.ref.outputs.branch_or_tag_name }}/${{ github.sha }}/otp-21.3/rabbitmq-server-tested-deps.mk

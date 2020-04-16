@@ -37,7 +37,7 @@ groups() ->
       {unclustered_2_nodes, [], [
           {cluster_size_2, [], [
               classic_config_discovery_node_list
-            ]},
+            ]}
         ]},
       {unclustered_3_nodes, [], [
           {cluster_size_3, [], [
